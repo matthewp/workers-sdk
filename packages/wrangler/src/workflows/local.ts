@@ -163,6 +163,20 @@ export async function updateLocalInstanceStatus(
 	);
 }
 
+export async function deleteLocalInstance(
+	port: number,
+	workflowName: string,
+	instanceId: string
+): Promise<void> {
+	await fetchLocalResult<{ success: boolean }>(
+		port,
+		`/workflows/${encodeURIComponent(workflowName)}/instances/${encodeURIComponent(instanceId)}`,
+		{
+			method: "DELETE",
+		}
+	);
+}
+
 // ============================================================================
 // Local response types (differ slightly from remote API types)
 // ============================================================================

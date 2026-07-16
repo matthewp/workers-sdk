@@ -1,6 +1,7 @@
 import { RpcTarget, WorkerEntrypoint } from "cloudflare:workers";
 import { InstanceEvent, instanceStatusName } from "./instance";
 import {
+	isUserTriggeredDelete,
 	isUserTriggeredPause,
 	isUserTriggeredRestart,
 	isUserTriggeredTerminate,
@@ -372,6 +373,17 @@ export class WorkflowHandle extends RpcTarget implements WorkflowInstance {
 		} catch (e) {
 			// terminate causes instance abortion
 			if (!isUserTriggeredTerminate(e)) {
+				throw e;
+			}
+		}
+	}
+
+	public async delete(): Promise<void> {
+		try {
+			await this.stub.deleteInstance();
+		} catch (e) {
+			// delete aborts the instance
+			if (!isUserTriggeredDelete(e)) {
 				throw e;
 			}
 		}

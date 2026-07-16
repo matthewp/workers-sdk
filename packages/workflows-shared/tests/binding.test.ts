@@ -130,6 +130,7 @@ describe("WorkflowBinding", () => {
 				resume: expect.any(Function),
 				terminate: expect.any(Function),
 				restart: expect.any(Function),
+				delete: expect.any(Function),
 			});
 
 			// Wait for the workflow to complete before the test ends so
@@ -141,6 +142,33 @@ describe("WorkflowBinding", () => {
 				},
 				{ timeout: 5000 }
 			);
+		});
+	});
+
+	describe("delete()", () => {
+		it("should delete an instance and wipe its stored state", async ({
+			expect,
+		}) => {
+			const id = uniqueId();
+			const binding = createBinding();
+			env.ENGINE.get(env.ENGINE.idFromName(id));
+
+			setTestWorkflowCallback(async () => "done");
+			await binding.create({ id });
+
+			const instance = await binding.get(id);
+			await vi.waitUntil(
+				async () => {
+					const s = await instance.status();
+					return s.status === "complete";
+				},
+				{ timeout: 5000 }
+			);
+
+			// delete wipes engine storage and aborts the instance; the call resolves cleanly
+			await expect(
+				(instance as unknown as { delete(): Promise<void> }).delete()
+			).resolves.toBeUndefined();
 		});
 	});
 

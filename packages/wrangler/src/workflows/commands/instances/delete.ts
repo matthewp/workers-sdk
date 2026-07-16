@@ -1,8 +1,11 @@
-import { UserError } from "@cloudflare/workers-utils";
 import { createCommand } from "../../../core/create-command";
 import { logger } from "../../../logger";
 import { requireAuth } from "../../../user";
-import { localWorkflowArgs } from "../../local";
+import {
+	deleteLocalInstance,
+	getLocalInstanceIdFromArgs,
+	localWorkflowArgs,
+} from "../../local";
 import { deleteInstance, getInstanceIdFromArgs } from "../../utils";
 
 export const workflowsInstancesDeleteCommand = createCommand({
@@ -28,16 +31,16 @@ export const workflowsInstancesDeleteCommand = createCommand({
 	},
 
 	async handler(args, { config }) {
-		if (args.local) {
-			throw new UserError(
-				"Deleting instances is not supported in local mode.",
-				{ telemetryMessage: "workflows local instance delete unsupported" }
-			);
-		}
+		let id: string;
 
-		const accountId = await requireAuth(config);
-		const id = await getInstanceIdFromArgs(accountId, args, config);
-		await deleteInstance(config, accountId, args.name, id);
+		if (args.local) {
+			id = await getLocalInstanceIdFromArgs(args.port, args);
+			await deleteLocalInstance(args.port, args.name, id);
+		} else {
+			const accountId = await requireAuth(config);
+			id = await getInstanceIdFromArgs(accountId, args, config);
+			await deleteInstance(config, accountId, args.name, id);
+		}
 
 		logger.info(
 			`🗑️  The instance "${id}" from ${args.name} was deleted successfully`

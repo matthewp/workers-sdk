@@ -124,6 +124,12 @@ class InstanceImpl implements WorkflowInstance {
 		await instance.restart(options);
 	}
 
+	public async delete(): Promise<void> {
+		using instance = await this.getInstance();
+		// TODO(vaish): remove cast once @cloudflare/workers-types ships instance delete
+		await (instance as unknown as { delete(): Promise<void> }).delete();
+	}
+
 	public async status(): Promise<InstanceStatus> {
 		using instance = await this.getInstance();
 		using res = (await instance.status()) as InstanceStatus & Disposable;
