@@ -143,3 +143,18 @@ export async function updateInstanceStatus(
 		}
 	);
 }
+
+export async function deleteInstance(
+	config: Config,
+	accountId: string,
+	workflowName: string,
+	instanceId: string
+): Promise<void> {
+	await fetchResult(
+		config,
+		`/accounts/${accountId}/workflows/${workflowName}/instances/${instanceId}`,
+		{
+			method: "DELETE",
+		}
+	);
+}

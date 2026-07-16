@@ -199,6 +199,7 @@ describe("wrangler workflows", () => {
 				  wrangler workflows instances restart <name> <id>     Restart a workflow instance
 				  wrangler workflows instances pause <name> <id>       Pause a workflow instance
 				  wrangler workflows instances resume <name> <id>      Resume a workflow instance
+				  wrangler workflows instances delete <name> <id>      Delete a workflow instance and its stored state
 
 				GLOBAL FLAGS
 				  -c, --config          Path to Wrangler configuration file  [string]
@@ -684,6 +685,46 @@ describe("wrangler workflows", () => {
 			expect(std.info).toMatchInlineSnapshot(
 				`"🥷 The instance "bar" from some-workflow was terminated successfully"`
 			);
+		});
+	});
+
+	describe("instances delete", () => {
+		const mockDeleteInstance = async (expect: ExpectStatic, expectedId: string) => {
+			msw.use(
+				http.delete(
+					`*/accounts/:accountId/workflows/:workflowName/instances/:instanceId`,
+					async ({ params }) => {
+						expect(params.instanceId).toEqual(expectedId);
+						return HttpResponse.json({
+							success: true,
+							errors: [],
+							messages: [],
+							result: {
+								instanceId: expectedId,
+								timestamp: mockModifiedDate.toISOString(),
+							},
+						});
+					},
+					{ once: true }
+				)
+			);
+		};
+
+		it("should delete the bar instance given a name", async ({ expect }) => {
+			writeWranglerConfig();
+			await mockDeleteInstance(expect, "bar");
+
+			await runWrangler(`workflows instances delete some-workflow bar`);
+			expect(std.info).toMatchInlineSnapshot(
+				`"🗑️  The instance "bar" from some-workflow was deleted successfully"`
+			);
+		});
+
+		it("should error in local mode", async ({ expect }) => {
+			writeWranglerConfig();
+			await expect(
+				runWrangler(`workflows instances delete some-workflow bar --local`)
+			).rejects.toThrowError("Deleting instances is not supported in local mode.");
 		});
 	});
 
