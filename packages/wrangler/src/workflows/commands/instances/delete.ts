@@ -24,7 +24,7 @@ export const workflowsInstancesDeleteCommand = createCommand({
 		},
 		id: {
 			describe:
-				"ID of the instance - instead of an UUID you can type 'latest' to get the latest instance and delete it",
+				"ID of the instance - you can type 'latest' to get the latest instance and delete it",
 			type: "string",
 			demandOption: true,
 		},
