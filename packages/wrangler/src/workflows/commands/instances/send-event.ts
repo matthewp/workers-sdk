@@ -26,7 +26,7 @@ export const workflowsInstancesSendEventCommand = createCommand({
 		},
 		id: {
 			describe:
-				"ID of the instance - instead of an UUID you can type 'latest' to get the latest instance and send an event to it",
+				"ID of the instance - you can type 'latest' to get the latest instance and send an event to it",
 			type: "string",
 			demandOption: true,
 		},
