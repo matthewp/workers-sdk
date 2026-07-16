@@ -24,7 +24,7 @@ export const workflowsInstancesTerminateCommand = createCommand({
 		},
 		id: {
 			describe:
-				"ID of the instance - you can type 'latest' to get the latest instance and describe it",
+				"ID of the instance - you can type 'latest' to get the latest instance and terminate it",
 			type: "string",
 			demandOption: true,
 		},
