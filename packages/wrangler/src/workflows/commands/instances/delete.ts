@@ -10,7 +10,7 @@ import { deleteInstance, getInstanceIdFromArgs } from "../../utils";
 
 export const workflowsInstancesDeleteCommand = createCommand({
 	metadata: {
-		description: "Delete a workflow instance and its stored state",
+		description: "Delete a workflow instance",
 		owner: "Product: Workflows",
 		status: "stable",
 	},

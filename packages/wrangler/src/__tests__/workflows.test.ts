@@ -199,7 +199,7 @@ describe("wrangler workflows", () => {
 				  wrangler workflows instances restart <name> <id>     Restart a workflow instance
 				  wrangler workflows instances pause <name> <id>       Pause a workflow instance
 				  wrangler workflows instances resume <name> <id>      Resume a workflow instance
-				  wrangler workflows instances delete <name> <id>      Delete a workflow instance and its stored state
+				  wrangler workflows instances delete <name> <id>      Delete a workflow instance
 
 				GLOBAL FLAGS
 				  -c, --config          Path to Wrangler configuration file  [string]
