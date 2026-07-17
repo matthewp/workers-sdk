@@ -16,6 +16,11 @@ const AssetsSchema = z.strictObject({
 	runWorkerFirst: z.union([z.array(z.string()), z.boolean()]).optional(),
 });
 
+export const BrowserBindingSchema = z.strictObject({
+	type: z.literal("browser"),
+	remote: z.boolean().optional(),
+});
+
 const KnownBindingSchema = z.discriminatedUnion("type", [
 	z.strictObject({
 		type: z.literal("agent-memory"),
@@ -43,10 +48,7 @@ const KnownBindingSchema = z.discriminatedUnion("type", [
 		remote: z.boolean().optional(),
 	}),
 	z.strictObject({ type: z.literal("assets") }),
-	z.strictObject({
-		type: z.literal("browser"),
-		remote: z.boolean().optional(),
-	}),
+	BrowserBindingSchema,
 	z.strictObject({
 		type: z.literal("d1"),
 		name: z.string().optional(),
@@ -291,12 +293,14 @@ const EnvSchema = z
 // `state` defaults to `"created"` (live) when omitted. Tombstones use one of
 // `"deleted"`, `"renamed"`, `"transferred"`; `"expecting-transfer"` is a live
 // entry awaiting incoming data via the two-phase cross-script transfer flow.
+export const DurableObjectCreatedExportSchema = z.strictObject({
+	type: z.literal("durable-object"),
+	state: z.literal("created").optional(),
+	storage: z.enum(["sqlite", "legacy-kv"]),
+});
+
 const ExportSchema = z.union([
-	z.strictObject({
-		type: z.literal("durable-object"),
-		state: z.literal("created").optional(),
-		storage: z.enum(["sqlite", "legacy-kv"]),
-	}),
+	DurableObjectCreatedExportSchema,
 	z.strictObject({
 		type: z.literal("durable-object"),
 		state: z.literal("deleted"),
