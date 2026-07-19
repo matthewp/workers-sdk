@@ -136,6 +136,16 @@ export interface WorkflowInstanceRestartOptions {
 	from?: RestartFromStep;
 }
 
+export interface WorkflowBatchDeleteResult {
+	deleted: { id: string }[];
+	errors: Array<{
+		index: number;
+		id: string;
+		code: number;
+		message: string;
+	}>;
+}
+
 // this.env.WORKFLOW is WorkflowBinding
 export class WorkflowBinding extends WorkerEntrypoint<Env> {
 	constructor(ctx: ExecutionContext, env: Env) {
@@ -239,6 +249,57 @@ export class WorkflowBinding extends WorkerEntrypoint<Env> {
 				return res;
 			})
 		);
+	}
+
+	public async deleteBatch(options: {
+		instances: string[];
+	}): Promise<WorkflowBatchDeleteResult> {
+		const instanceIds = options?.instances;
+		if (
+			!Array.isArray(instanceIds) ||
+			instanceIds.length === 0 ||
+			instanceIds.length > 100
+		) {
+			throw new WorkflowError(
+				"Batch must contain between 1 and 100 instance IDs"
+			);
+		}
+		if (!instanceIds.every(isValidWorkflowInstanceId)) {
+			throw new WorkflowError("Workflow instance has invalid id");
+		}
+
+		const results: Array<
+			| { deleted: { id: string } }
+			| { error: WorkflowBatchDeleteResult["errors"][number] }
+		> = await Promise.all(
+			instanceIds.map(async (id, index) => {
+				const stub = this.env.ENGINE.get(this.env.ENGINE.idFromName(id));
+				try {
+					await stub.deleteInstance();
+				} catch (error) {
+					if (!isUserTriggeredDelete(error)) {
+						return {
+							error: {
+								index,
+								id,
+								code: 500,
+								message: error instanceof Error ? error.message : String(error),
+							},
+						};
+					}
+				}
+				return { deleted: { id } };
+			})
+		);
+
+		return {
+			deleted: results.flatMap((result) =>
+				"deleted" in result ? [result.deleted] : []
+			),
+			errors: results.flatMap((result) =>
+				"error" in result ? [result.error] : []
+			),
+		};
 	}
 
 	public async unsafeGetBindingName(): Promise<string> {
@@ -373,17 +434,6 @@ export class WorkflowHandle extends RpcTarget implements WorkflowInstance {
 		} catch (e) {
 			// terminate causes instance abortion
 			if (!isUserTriggeredTerminate(e)) {
-				throw e;
-			}
-		}
-	}
-
-	public async delete(): Promise<void> {
-		try {
-			await this.stub.deleteInstance();
-		} catch (e) {
-			// delete aborts the instance
-			if (!isUserTriggeredDelete(e)) {
 				throw e;
 			}
 		}

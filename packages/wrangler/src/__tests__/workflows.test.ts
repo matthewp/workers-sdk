@@ -199,7 +199,7 @@ describe("wrangler workflows", () => {
 				  wrangler workflows instances restart <name> <id>     Restart a workflow instance
 				  wrangler workflows instances pause <name> <id>       Pause a workflow instance
 				  wrangler workflows instances resume <name> <id>      Resume a workflow instance
-				  wrangler workflows instances delete <name> <id>      Delete a workflow instance
+				  wrangler workflows instances delete <name> <id..>    Delete workflow instances
 
 				GLOBAL FLAGS
 				  -c, --config          Path to Wrangler configuration file  [string]
@@ -689,20 +689,29 @@ describe("wrangler workflows", () => {
 	});
 
 	describe("instances delete", () => {
-		const mockDeleteInstance = async (expect: ExpectStatic, expectedId: string) => {
+		const mockDeleteInstances = (
+			expect: ExpectStatic,
+			expectedIds: string[],
+			result = {
+				deleted: expectedIds.map((id) => ({ id })),
+				errors: [] as Array<{
+					index: number;
+					id: string;
+					code: number;
+					message: string;
+				}>,
+			}
+		) => {
 			msw.use(
-				http.delete(
-					`*/accounts/:accountId/workflows/:workflowName/instances/:instanceId`,
-					async ({ params }) => {
-						expect(params.instanceId).toEqual(expectedId);
+				http.post(
+					`*/accounts/:accountId/workflows/:workflowName/instances/batch/delete`,
+					async ({ request }) => {
+						expect(await request.json()).toEqual({ instances: expectedIds });
 						return HttpResponse.json({
 							success: true,
 							errors: [],
 							messages: [],
-							result: {
-								instanceId: expectedId,
-								timestamp: mockModifiedDate.toISOString(),
-							},
+							result,
 						});
 					},
 					{ once: true }
@@ -710,13 +719,35 @@ describe("wrangler workflows", () => {
 			);
 		};
 
-		it("should delete the bar instance given a name", async ({ expect }) => {
+		it("should delete multiple instances", async ({ expect }) => {
 			writeWranglerConfig();
-			await mockDeleteInstance(expect, "bar");
+			mockDeleteInstances(expect, ["foo", "bar"]);
 
-			await runWrangler(`workflows instances delete some-workflow bar`);
+			await runWrangler(`workflows instances delete some-workflow foo bar`);
 			expect(std.info).toMatchInlineSnapshot(
-				`"🗑️  The instance "bar" from some-workflow was deleted successfully"`
+				`"🗑️  Deleted workflow instances from "some-workflow": "foo", "bar""`
+			);
+		});
+
+		it("should report per-instance errors", async ({ expect }) => {
+			writeWranglerConfig();
+			mockDeleteInstances(expect, ["foo", "bar"], {
+				deleted: [{ id: "foo" }],
+				errors: [{ index: 1, id: "bar", code: 500, message: "delete failed" }],
+			});
+
+			await expect(
+				runWrangler(`workflows instances delete some-workflow foo bar`)
+			).rejects.toThrow("Failed to delete 1 workflow instance(s)");
+		});
+
+		it("should reject more than 100 instances", async ({ expect }) => {
+			writeWranglerConfig();
+			const ids = Array.from({ length: 101 }, (_, i) => `instance-${i}`);
+			await expect(
+				runWrangler(`workflows instances delete some-workflow ${ids.join(" ")}`)
+			).rejects.toThrow(
+				"You can delete at most 100 workflow instances at a time"
 			);
 		});
 	});
@@ -1843,17 +1874,18 @@ describe("wrangler workflows", () => {
 		});
 
 		describe("workflows instances delete --local", () => {
-			it("should delete an instance in local dev session", async ({
+			it("should delete multiple instances in local dev session", async ({
 				expect,
 			}) => {
 				writeWranglerConfig();
+				const deleted: string[] = [];
 
 				msw.use(
 					http.delete(
 						`${LOCAL_BASE}/workflows/:workflowName/instances/:instanceId`,
 						({ params }) => {
 							expect(params.workflowName).toEqual("my-workflow");
-							expect(params.instanceId).toEqual("instance-123");
+							deleted.push(params.instanceId as string);
 							return HttpResponse.json({
 								success: true,
 								errors: [],
@@ -1865,10 +1897,11 @@ describe("wrangler workflows", () => {
 				);
 
 				await runWrangler(
-					"workflows instances delete my-workflow instance-123 --local"
+					"workflows instances delete my-workflow instance-123 instance-456 --local"
 				);
+				expect(deleted).toEqual(["instance-123", "instance-456"]);
 				expect(std.info).toMatchInlineSnapshot(
-					`"🗑️  The instance "instance-123" from my-workflow was deleted successfully"`
+					`"🗑️  Deleted workflow instances from "my-workflow": "instance-123", "instance-456""`
 				);
 			});
 		});

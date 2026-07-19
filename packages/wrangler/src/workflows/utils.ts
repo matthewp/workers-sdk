@@ -4,6 +4,7 @@ import type {
 	Instance,
 	InstanceStatus,
 	InstanceTriggerName,
+	WorkflowBatchDeleteResult,
 	WorkflowInstanceRestartFrom,
 } from "./types";
 import type { Config } from "@cloudflare/workers-utils";
@@ -144,17 +145,21 @@ export async function updateInstanceStatus(
 	);
 }
 
-export async function deleteInstance(
+export async function deleteInstances(
 	config: Config,
 	accountId: string,
 	workflowName: string,
-	instanceId: string
-): Promise<void> {
-	await fetchResult(
+	instanceIds: string[]
+): Promise<WorkflowBatchDeleteResult> {
+	return fetchResult(
 		config,
-		`/accounts/${accountId}/workflows/${workflowName}/instances/${instanceId}`,
+		`/accounts/${accountId}/workflows/${workflowName}/instances/batch/delete`,
 		{
-			method: "DELETE",
+			method: "POST",
+			headers: {
+				"Content-Type": "application/json",
+			},
+			body: JSON.stringify({ instances: instanceIds }),
 		}
 	);
 }

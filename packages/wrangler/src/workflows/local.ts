@@ -3,6 +3,7 @@ import { fetch } from "undici";
 import { logger } from "../logger";
 import type {
 	InstanceStatusAndLogs,
+	WorkflowBatchDeleteResult,
 	WorkflowInstanceRestartFrom,
 } from "./types";
 
@@ -163,7 +164,7 @@ export async function updateLocalInstanceStatus(
 	);
 }
 
-export async function deleteLocalInstance(
+async function deleteLocalInstance(
 	port: number,
 	workflowName: string,
 	instanceId: string
@@ -175,6 +176,42 @@ export async function deleteLocalInstance(
 			method: "DELETE",
 		}
 	);
+}
+
+export async function deleteLocalInstances(
+	port: number,
+	workflowName: string,
+	instanceIds: string[]
+): Promise<WorkflowBatchDeleteResult> {
+	const results: Array<
+		| { deleted: { id: string } }
+		| { error: WorkflowBatchDeleteResult["errors"][number] }
+	> = await Promise.all(
+		instanceIds.map(async (id, index) => {
+			try {
+				await deleteLocalInstance(port, workflowName, id);
+				return { deleted: { id } };
+			} catch (error) {
+				return {
+					error: {
+						index,
+						id,
+						code: 500,
+						message: error instanceof Error ? error.message : String(error),
+					},
+				};
+			}
+		})
+	);
+
+	return {
+		deleted: results.flatMap((result) =>
+			"deleted" in result ? [result.deleted] : []
+		),
+		errors: results.flatMap((result) =>
+			"error" in result ? [result.error] : []
+		),
+	};
 }
 
 // ============================================================================

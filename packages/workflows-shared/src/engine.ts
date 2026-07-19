@@ -1038,16 +1038,6 @@ export class Engine extends DurableObject<Env> {
 	}
 
 	async deleteInstance(): Promise<void> {
-		const metadata =
-			await this.ctx.storage.get<InstanceMetadata>(INSTANCE_METADATA);
-
-		if (metadata === undefined) {
-			throw createWorkflowError(
-				"Instance does not exist",
-				"instance.not_found"
-			);
-		}
-
 		// Force-delete: wipe all engine storage and abort any in-flight execution.
 		await this.ctx.storage.deleteAll();
 		await this.abort(ABORT_REASONS.USER_DELETE);

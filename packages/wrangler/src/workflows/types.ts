@@ -47,6 +47,16 @@ export type Instance = {
 	status: InstanceStatus;
 };
 
+export type WorkflowBatchDeleteResult = {
+	deleted: { id: string }[];
+	errors: Array<{
+		index: number;
+		id: string;
+		code: number;
+		message: string;
+	}>;
+};
+
 export type InstanceTriggerName =
 	| "api"
 	| "binding"

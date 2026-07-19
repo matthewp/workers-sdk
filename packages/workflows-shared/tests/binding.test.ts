@@ -130,7 +130,6 @@ describe("WorkflowBinding", () => {
 				resume: expect.any(Function),
 				terminate: expect.any(Function),
 				restart: expect.any(Function),
-				delete: expect.any(Function),
 			});
 
 			// Wait for the workflow to complete before the test ends so
@@ -145,30 +144,53 @@ describe("WorkflowBinding", () => {
 		});
 	});
 
-	describe("delete()", () => {
-		it("should delete an instance and wipe its stored state", async ({
+	describe("deleteBatch()", () => {
+		it("should delete instances and wipe their stored state", async ({
 			expect,
 		}) => {
-			const id = uniqueId();
+			const ids = [uniqueId(), uniqueId()];
 			const binding = createBinding();
-			env.ENGINE.get(env.ENGINE.idFromName(id));
 
 			setTestWorkflowCallback(async () => "done");
-			await binding.create({ id });
+			await binding.createBatch(ids.map((id) => ({ id })));
 
-			const instance = await binding.get(id);
-			await vi.waitUntil(
-				async () => {
-					const s = await instance.status();
-					return s.status === "complete";
-				},
-				{ timeout: 5000 }
-			);
+			for (const id of ids) {
+				const instance = await binding.get(id);
+				await vi.waitUntil(
+					async () => {
+						const status = await instance.status();
+						return status.status === "complete";
+					},
+					{ timeout: 5000 }
+				);
+			}
 
-			// delete wipes engine storage and aborts the instance; the call resolves cleanly
+			await expect(binding.deleteBatch({ instances: ids })).resolves.toEqual({
+				deleted: ids.map((id) => ({ id })),
+				errors: [],
+			});
+		});
+
+		it("should treat missing instances as deleted", async ({ expect }) => {
+			const binding = createBinding();
 			await expect(
-				(instance as unknown as { delete(): Promise<void> }).delete()
-			).resolves.toBeUndefined();
+				binding.deleteBatch({ instances: ["missing-instance"] })
+			).resolves.toEqual({
+				deleted: [{ id: "missing-instance" }],
+				errors: [],
+			});
+		});
+
+		it("should reject invalid batch sizes", async ({ expect }) => {
+			const binding = createBinding();
+			for (const instances of [
+				[],
+				Array.from({ length: 101 }, (_, i) => `instance-${i}`),
+			]) {
+				await expect(binding.deleteBatch({ instances })).rejects.toThrow(
+					"Batch must contain between 1 and 100 instance IDs"
+				);
+			}
 		});
 	});
 
